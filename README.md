@@ -13,6 +13,14 @@ window, file open/save/save-as, and live Markdown rendering without WebKit.
 - Programmatic AppKit UI, with no nib or storyboard dependency.
 - Manual retain/release memory management.
 
+## Screenshots
+
+On macOS:
+<img width="1169" height="808" alt="md-demo-mac" src="https://github.com/user-attachments/assets/518ec7d0-9d56-47e7-af10-21d39e710a92" />
+
+On GNUstep:
+<img width="1239" height="833" alt="md-demo-gs" src="https://github.com/user-attachments/assets/0ddd51c4-8172-44ee-aa9b-7cb050f7e364" />
+
 ## Build On GNUstep/Linux
 
 Install GNUstep development packages, then run:
