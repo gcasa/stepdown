@@ -1,5 +1,6 @@
 APP_NAME = StepDown
 SRC = src/main.m src/AppDelegate.m src/MarkdownRenderer.m
+RESOURCES = resources/StepDown.png resources/StepDown.tiff resources/StepDown.svg
 
 UNAME_S := $(shell uname -s)
 
@@ -20,6 +21,7 @@ all: $(APP_DIR)
 $(APP_DIR): $(BIN) resources/Info.plist
 	mkdir -p $(RESOURCES_DIR)
 	cp resources/Info.plist $(CONTENTS_DIR)/Info.plist
+	cp $(RESOURCES) $(RESOURCES_DIR)/
 
 $(BIN): $(SRC)
 	mkdir -p $(MACOS_DIR)
@@ -43,7 +45,7 @@ BIN = $(OBJ_DIR)/$(APP_NAME)
 
 all: $(BIN)
 
-$(BIN): $(OBJ)
+$(BIN): $(OBJ) $(RESOURCES)
 	$(OBJC) -o $@ $(OBJ) $(LDFLAGS)
 
 $(OBJ_DIR)/%.o: src/%.m

@@ -1,6 +1,8 @@
 {
   ApplicationName = StepDown;
   ApplicationDescription = "Markdown viewer and creator";
+  ApplicationIcon = StepDown.tiff;
+  NSIcon = StepDown.tiff;
   ApplicationRelease = "1.0";
   Authors = ("StepDown Contributors");
   Copyright = "Public Domain";

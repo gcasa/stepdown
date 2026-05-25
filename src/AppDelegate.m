@@ -30,6 +30,13 @@ static NSString *StepDownInitialMarkdown(void)
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification
 {
+    NSImage *icon;
+
+    icon = [NSImage imageNamed:@"StepDown"];
+    if (icon != nil) {
+        [NSApp setApplicationIconImage:icon];
+    }
+
     [self buildMenu];
     [self buildWindow];
     [[editorView textStorage] setAttributedString:

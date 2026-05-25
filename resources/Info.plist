@@ -9,6 +9,8 @@
   <string>StepDown</string>
   <key>CFBundleIdentifier</key>
   <string>local.stepdown.markdown</string>
+  <key>CFBundleIconFile</key>
+  <string>StepDown.png</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
