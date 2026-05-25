@@ -1,0 +1,7 @@
+{
+  ApplicationName = StepDown;
+  ApplicationDescription = "Markdown viewer and creator";
+  ApplicationRelease = "1.0";
+  Authors = ("StepDown Contributors");
+  Copyright = "Public Domain";
+}
