@@ -1,6 +1,6 @@
 APP_NAME = StepDown
 SRC = src/main.m src/AppDelegate.m src/MarkdownRenderer.m
-RESOURCES = resources/StepDown.png resources/StepDown.tiff resources/StepDown.svg
+RESOURCES = resources/StepDown.png resources/StepDown.tiff resources/StepDown.svg resources/MarkdownDocument.png resources/MarkdownDocument.tiff resources/MarkdownDocument.svg
 
 UNAME_S := $(shell uname -s)
 

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="Markdown document icon">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="22" stdDeviation="24" flood-color="#10272b" flood-opacity="0.24"/>
+    </filter>
+  </defs>
+
+  <path d="M248 80h368l160 160v628c0 42-34 76-76 76H248c-42 0-76-34-76-76V156c0-42 34-76 76-76z" fill="#f7f1e4" filter="url(#shadow)"/>
+  <path d="M616 80v118c0 42 34 76 76 76h84L616 80z" fill="#d8cbb7"/>
+  <path d="M616 80v118c0 42 34 76 76 76h84" fill="none" stroke="#c0b2a0" stroke-width="18" stroke-linejoin="round"/>
+
+  <rect x="264" y="338" width="496" height="172" rx="34" fill="#1c5159"/>
+  <path d="M315 461V386h31l30 39 30-39h31v75h-30v-34l-24 31h-14l-24-31v34h-30z" fill="#f7f1e4"/>
+  <path d="M515 386h40v44h28l-48 57-48-57h28v-44z" fill="#d86f45"/>
+  <path d="M626 461h84" fill="none" stroke="#f7f1e4" stroke-width="28" stroke-linecap="round"/>
+
+  <rect x="264" y="586" width="430" height="32" rx="16" fill="#425c61" opacity="0.40"/>
+  <rect x="264" y="660" width="356" height="32" rx="16" fill="#425c61" opacity="0.32"/>
+  <rect x="264" y="734" width="440" height="32" rx="16" fill="#425c61" opacity="0.24"/>
+</svg>

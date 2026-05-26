@@ -29,7 +29,7 @@
       <key>CFBundleTypeRole</key>
       <string>Editor</string>
       <key>CFBundleTypeIconFile</key>
-      <string>StepDown.png</string>
+      <string>MarkdownDocument.png</string>
       <key>CFBundleTypeExtensions</key>
       <array>
         <string>md</string>

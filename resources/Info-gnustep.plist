@@ -12,7 +12,7 @@
       NSHumanReadableName = "Markdown Document";
       NSUnixExtensions = ("md", "markdown");
       NSRole = Editor;
-      NSIcon = StepDown.tiff;
+      NSIcon = MarkdownDocument.tiff;
     }
   );
 }
