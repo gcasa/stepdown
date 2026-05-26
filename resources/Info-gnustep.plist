@@ -6,4 +6,13 @@
   ApplicationRelease = "1.0";
   Authors = ("StepDown Contributors");
   Copyright = "Public Domain";
+  NSTypes = (
+    {
+      NSName = "StepDownMarkdownDocument";
+      NSHumanReadableName = "Markdown Document";
+      NSUnixExtensions = ("md", "markdown");
+      NSRole = Editor;
+      NSIcon = StepDown.tiff;
+    }
+  );
 }

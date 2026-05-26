@@ -17,6 +17,7 @@ static NSString *StepDownInitialMarkdown(void)
         editorView = nil;
         previewView = nil;
         currentPath = nil;
+        pendingOpenPath = nil;
         dirty = NO;
     }
     return self;
@@ -25,6 +26,7 @@ static NSString *StepDownInitialMarkdown(void)
 - (void)dealloc
 {
     [currentPath release];
+    [pendingOpenPath release];
     [super dealloc];
 }
 
@@ -39,9 +41,43 @@ static NSString *StepDownInitialMarkdown(void)
 
     [self buildMenu];
     [self buildWindow];
-    [[editorView textStorage] setAttributedString:
-        [[[NSAttributedString alloc] initWithString:StepDownInitialMarkdown()] autorelease]];
-    [self updatePreview];
+    if (pendingOpenPath != nil) {
+        [self openDocumentAtPath:pendingOpenPath confirmingDiscard:NO];
+        [pendingOpenPath release];
+        pendingOpenPath = nil;
+    } else {
+        [[editorView textStorage] setAttributedString:
+            [[[NSAttributedString alloc] initWithString:StepDownInitialMarkdown()] autorelease]];
+        [self updatePreview];
+    }
+}
+
+- (BOOL)application:(NSApplication *)application openFile:(NSString *)filename
+{
+    if (window == nil || editorView == nil) {
+        [pendingOpenPath release];
+        pendingOpenPath = [filename copy];
+        return YES;
+    }
+
+    return [self openDocumentAtPath:filename confirmingDiscard:YES];
+}
+
+- (void)application:(NSApplication *)application openFiles:(NSArray *)filenames
+{
+    NSString *filename;
+
+    if ([filenames count] == 0) {
+        [application replyToOpenOrPrint:NSApplicationDelegateReplyFailure];
+        return;
+    }
+
+    filename = [filenames objectAtIndex:0];
+    if ([self application:application openFile:filename]) {
+        [application replyToOpenOrPrint:NSApplicationDelegateReplySuccess];
+    } else {
+        [application replyToOpenOrPrint:NSApplicationDelegateReplyFailure];
+    }
 }
 
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)application
@@ -206,8 +242,6 @@ static NSString *StepDownInitialMarkdown(void)
     NSOpenPanel *panel;
     int result;
     NSString *path;
-    NSString *contents;
-    NSError *error;
     NSArray *types;
 
     if (![self confirmDiscardIfNeeded]) {
@@ -223,11 +257,23 @@ static NSString *StepDownInitialMarkdown(void)
     }
 
     path = [panel filename];
+    [self openDocumentAtPath:path confirmingDiscard:NO];
+}
+
+- (BOOL)openDocumentAtPath:(NSString *)path confirmingDiscard:(BOOL)confirm
+{
+    NSString *contents;
+    NSError *error;
+
+    if (confirm && ![self confirmDiscardIfNeeded]) {
+        return NO;
+    }
+
     error = nil;
     contents = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:&error];
     if (contents == nil) {
         [self showError:@"Could not open the selected file."];
-        return;
+        return NO;
     }
 
     [currentPath release];
@@ -237,6 +283,7 @@ static NSString *StepDownInitialMarkdown(void)
     dirty = NO;
     [self updateWindowTitle];
     [self updatePreview];
+    return YES;
 }
 
 - (void)saveDocument:(id)sender

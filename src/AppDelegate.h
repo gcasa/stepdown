@@ -14,6 +14,7 @@
     NSTextView *editorView;
     NSTextView *previewView;
     NSString *currentPath;
+    NSString *pendingOpenPath;
     BOOL dirty;
 }
 
@@ -21,6 +22,7 @@
 - (void)openDocument:(id)sender;
 - (void)saveDocument:(id)sender;
 - (void)saveDocumentAs:(id)sender;
+- (BOOL)openDocumentAtPath:(NSString *)path confirmingDiscard:(BOOL)confirm;
 - (void)updatePreview;
 
 @end
