@@ -21,6 +21,10 @@ On macOS:
 On GNUstep:
 <img width="1239" height="833" alt="md-demo-gs" src="https://github.com/user-attachments/assets/0ddd51c4-8172-44ee-aa9b-7cb050f7e364" />
 
+## Generative AI disclosure
+
+This app was created partly with Generative AI.
+
 ## Build On GNUstep/Linux
 
 Install GNUstep development packages, then run:
