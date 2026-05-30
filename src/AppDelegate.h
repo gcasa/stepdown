@@ -24,6 +24,7 @@
 - (void)saveDocumentAs:(id)sender;
 - (BOOL)openDocumentAtPath:(NSString *)path confirmingDiscard:(BOOL)confirm;
 - (void)updatePreview;
+- (void)splitViewDidResizeSubviews:(NSNotification *)notification;
 
 @end
 

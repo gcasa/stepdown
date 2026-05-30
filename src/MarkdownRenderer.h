@@ -10,6 +10,8 @@
 
 @interface MarkdownRenderer : NSObject
 + (NSAttributedString *)attributedStringFromMarkdown:(NSString *)markdown;
++ (NSAttributedString *)attributedStringFromMarkdown:(NSString *)markdown baseURL:(NSURL *)baseURL;
++ (NSAttributedString *)attributedStringFromMarkdown:(NSString *)markdown baseURL:(NSURL *)baseURL maxImageWidth:(CGFloat)maxImageWidth;
 @end
 
 #endif

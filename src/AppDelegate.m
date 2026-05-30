@@ -156,6 +156,7 @@ static NSString *StepDownInitialMarkdown(void)
     [splitView setVertical:YES];
     [splitView setDividerStyle:NSSplitViewDividerStyleThin];
     [splitView setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+    [splitView setDelegate:self];
 
     editorView = [[NSTextView alloc] initWithFrame:NSMakeRect(0, 0, 500, 650)];
     previewView = [[NSTextView alloc] initWithFrame:NSMakeRect(0, 0, 500, 650)];
@@ -172,6 +173,7 @@ static NSString *StepDownInitialMarkdown(void)
     [previewView setEditable:NO];
     [previewView setSelectable:YES];
     [previewView setRichText:YES];
+    [previewView setImportsGraphics:YES];
     [previewView setUsesFontPanel:NO];
 
     editorScroll = [self scrollViewForTextView:editorView];
@@ -346,9 +348,31 @@ static NSString *StepDownInitialMarkdown(void)
 - (void)updatePreview
 {
     NSAttributedString *rendered;
+    NSURL *baseURL;
+    NSString *basePath;
+    CGFloat previewWidth;
 
-    rendered = [MarkdownRenderer attributedStringFromMarkdown:[editorView string]];
+    if (currentPath != nil) {
+        basePath = [currentPath stringByDeletingLastPathComponent];
+    } else {
+        basePath = [[NSFileManager defaultManager] currentDirectoryPath];
+    }
+    baseURL = [NSURL fileURLWithPath:basePath];
+    previewWidth = NSWidth([previewView bounds]);
+    if (previewWidth > 24.0) {
+        previewWidth -= 24.0;
+    }
+    if (previewWidth < 200.0) {
+        previewWidth = 200.0;
+    }
+
+    rendered = [MarkdownRenderer attributedStringFromMarkdown:[editorView string] baseURL:baseURL maxImageWidth:previewWidth];
     [[previewView textStorage] setAttributedString:rendered];
+}
+
+- (void)splitViewDidResizeSubviews:(NSNotification *)notification
+{
+    [self updatePreview];
 }
 
 @end

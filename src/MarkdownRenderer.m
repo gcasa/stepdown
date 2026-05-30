@@ -161,13 +161,242 @@ static NSString *StepDownStripLinkMarkup(NSString *text)
     return out;
 }
 
-static void StepDownAppendInline(NSMutableAttributedString *target, NSString *text, NSFont *baseFont)
+static NSMutableDictionary *StepDownImageCache(void)
+{
+    static NSMutableDictionary *cache = nil;
+
+    if (cache == nil) {
+        cache = [[NSMutableDictionary alloc] init];
+    }
+    return cache;
+}
+
+static NSImage *StepDownImageFromSource(NSString *source, NSURL *baseURL)
+{
+    NSURL *url;
+    NSString *cacheKey;
+    NSMutableDictionary *cache;
+    NSString *trimmedSource;
+    NSImage *image;
+
+    trimmedSource = [source stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if ([trimmedSource length] == 0) {
+        return nil;
+    }
+
+    if ([trimmedSource hasPrefix:@"http://"] || [trimmedSource hasPrefix:@"https://"] || [trimmedSource hasPrefix:@"file://"]) {
+        url = [NSURL URLWithString:trimmedSource];
+    } else if (baseURL != nil) {
+        url = [NSURL URLWithString:trimmedSource relativeToURL:baseURL];
+    } else {
+        url = [NSURL fileURLWithPath:trimmedSource];
+    }
+
+    if (url == nil) {
+        return nil;
+    }
+
+    cacheKey = [url absoluteString];
+    cache = StepDownImageCache();
+    image = [cache objectForKey:cacheKey];
+    if (image != nil) {
+        return image;
+    }
+
+    {
+        NSData *data;
+
+        data = [NSData dataWithContentsOfURL:url];
+        if (data != nil) {
+            image = [[[NSImage alloc] initWithData:data] autorelease];
+        }
+    }
+    if (image != nil) {
+        [cache setObject:image forKey:cacheKey];
+    }
+    return image;
+}
+
+static BOOL StepDownExtractHTMLImageTag(NSString *text, NSUInteger startIndex, NSUInteger *endIndex, NSString **sourceOut, NSString **altOut)
+{
+    NSRange closeRange;
+    NSRange tagRange;
+    NSString *tag;
+    NSString *lowerTag;
+    NSUInteger srcLocation;
+    NSUInteger altLocation;
+    NSUInteger valueStart;
+    NSUInteger valueEnd;
+    NSString *source;
+    NSString *altText;
+    unichar ch;
+
+    if (startIndex + 4 > [text length]) {
+        return NO;
+    }
+
+    tagRange = NSMakeRange(startIndex, 4);
+    if ([[[text substringWithRange:tagRange] lowercaseString] caseInsensitiveCompare:@"<img"] != NSOrderedSame) {
+        return NO;
+    }
+
+    closeRange = [text rangeOfString:@">" options:0 range:NSMakeRange(startIndex, [text length] - startIndex)];
+    if (closeRange.location == NSNotFound) {
+        return NO;
+    }
+
+    tagRange = NSMakeRange(startIndex, closeRange.location - startIndex + 1);
+    tag = [text substringWithRange:tagRange];
+    lowerTag = [tag lowercaseString];
+
+    srcLocation = [lowerTag rangeOfString:@"src"].location;
+    if (srcLocation == NSNotFound) {
+        return NO;
+    }
+
+    valueStart = srcLocation + 3;
+    while (valueStart < [tag length]) {
+        ch = [tag characterAtIndex:valueStart];
+        if (ch != ' ' && ch != '\t') {
+            break;
+        }
+        valueStart++;
+    }
+    if (valueStart >= [tag length] || [tag characterAtIndex:valueStart] != '=') {
+        return NO;
+    }
+    valueStart++;
+    while (valueStart < [tag length]) {
+        ch = [tag characterAtIndex:valueStart];
+        if (ch != ' ' && ch != '\t') {
+            break;
+        }
+        valueStart++;
+    }
+    if (valueStart >= [tag length]) {
+        return NO;
+    }
+
+    ch = [tag characterAtIndex:valueStart];
+    if (ch == '"' || ch == '\'') {
+        valueStart++;
+        valueEnd = valueStart;
+        while (valueEnd < [tag length] && [tag characterAtIndex:valueEnd] != ch) {
+            valueEnd++;
+        }
+    } else {
+        valueEnd = valueStart;
+        while (valueEnd < [tag length]) {
+            ch = [tag characterAtIndex:valueEnd];
+            if (ch == ' ' || ch == '\t' || ch == '>') {
+                break;
+            }
+            valueEnd++;
+        }
+    }
+
+    if (valueEnd <= valueStart) {
+        return NO;
+    }
+
+    source = [tag substringWithRange:NSMakeRange(valueStart, valueEnd - valueStart)];
+    altText = @"";
+
+    altLocation = [lowerTag rangeOfString:@"alt"].location;
+    if (altLocation != NSNotFound) {
+        valueStart = altLocation + 3;
+        while (valueStart < [tag length]) {
+            ch = [tag characterAtIndex:valueStart];
+            if (ch != ' ' && ch != '\t') {
+                break;
+            }
+            valueStart++;
+        }
+        if (valueStart < [tag length] && [tag characterAtIndex:valueStart] == '=') {
+            valueStart++;
+            while (valueStart < [tag length]) {
+                ch = [tag characterAtIndex:valueStart];
+                if (ch != ' ' && ch != '\t') {
+                    break;
+                }
+                valueStart++;
+            }
+            if (valueStart < [tag length]) {
+                ch = [tag characterAtIndex:valueStart];
+                if (ch == '"' || ch == '\'') {
+                    valueStart++;
+                    valueEnd = valueStart;
+                    while (valueEnd < [tag length] && [tag characterAtIndex:valueEnd] != ch) {
+                        valueEnd++;
+                    }
+                } else {
+                    valueEnd = valueStart;
+                    while (valueEnd < [tag length]) {
+                        ch = [tag characterAtIndex:valueEnd];
+                        if (ch == ' ' || ch == '\t' || ch == '>') {
+                            break;
+                        }
+                        valueEnd++;
+                    }
+                }
+                if (valueEnd > valueStart) {
+                    altText = [tag substringWithRange:NSMakeRange(valueStart, valueEnd - valueStart)];
+                }
+            }
+        }
+    }
+
+    *endIndex = closeRange.location + 1;
+    if (sourceOut != NULL) {
+        *sourceOut = source;
+    }
+    if (altOut != NULL) {
+        *altOut = altText;
+    }
+    return YES;
+}
+
+static void StepDownAppendImage(NSMutableAttributedString *target, NSString *source, NSString *altText, NSURL *baseURL, NSFont *baseFont, CGFloat maxImageWidth)
+{
+    NSImage *image;
+    NSTextAttachment *attachment;
+    NSTextAttachmentCell *cell;
+    NSMutableAttributedString *piece;
+    NSSize size;
+
+    image = StepDownImageFromSource(source, baseURL);
+    if (image == nil) {
+        if ([altText length] > 0) {
+            piece = [[[NSMutableAttributedString alloc] initWithString:altText attributes:StepDownAttrs(baseFont, [NSColor textColor])] autorelease];
+            [target appendAttributedString:piece];
+        }
+        return;
+    }
+
+    size = [image size];
+    if (maxImageWidth > 0.0 && size.width > maxImageWidth && size.width > 0.0) {
+        size.height = size.height * (maxImageWidth / size.width);
+        size.width = maxImageWidth;
+        [image setSize:size];
+    }
+
+    attachment = [[[NSTextAttachment alloc] init] autorelease];
+    cell = [[[NSTextAttachmentCell alloc] initImageCell:image] autorelease];
+    [attachment setAttachmentCell:cell];
+    piece = [[[NSMutableAttributedString alloc] initWithAttributedString:[NSAttributedString attributedStringWithAttachment:attachment]] autorelease];
+    [target appendAttributedString:piece];
+}
+
+static void StepDownAppendInline(NSMutableAttributedString *target, NSString *text, NSFont *baseFont, NSURL *baseURL, CGFloat maxImageWidth)
 {
     NSUInteger i;
     NSUInteger length;
     NSRange close;
+    NSUInteger imageEnd;
     NSString *chunk;
     NSString *plain;
+    NSString *source;
+    NSString *altText;
     NSFont *boldFont;
     NSFont *italicFont;
     NSFont *codeFont;
@@ -188,6 +417,12 @@ static void StepDownAppendInline(NSMutableAttributedString *target, NSString *te
     length = [plain length];
     i = 0;
     while (i < length) {
+        if ([plain characterAtIndex:i] == '<' && StepDownExtractHTMLImageTag(plain, i, &imageEnd, &source, &altText)) {
+            StepDownAppendImage(target, source, altText, baseURL, baseFont, maxImageWidth);
+            i = imageEnd;
+            continue;
+        }
+
         if ([plain characterAtIndex:i] == '`') {
             close = [plain rangeOfString:@"`" options:0 range:NSMakeRange(i + 1, length - i - 1)];
             if (close.location != NSNotFound) {
@@ -231,6 +466,16 @@ static void StepDownAppendInline(NSMutableAttributedString *target, NSString *te
 @implementation MarkdownRenderer
 
 + (NSAttributedString *)attributedStringFromMarkdown:(NSString *)markdown
+{
+    return [self attributedStringFromMarkdown:markdown baseURL:nil];
+}
+
++ (NSAttributedString *)attributedStringFromMarkdown:(NSString *)markdown baseURL:(NSURL *)baseURL
+{
+    return [self attributedStringFromMarkdown:markdown baseURL:baseURL maxImageWidth:420.0];
+}
+
++ (NSAttributedString *)attributedStringFromMarkdown:(NSString *)markdown baseURL:(NSURL *)baseURL maxImageWidth:(CGFloat)maxImageWidth
 {
     NSMutableAttributedString *out;
     NSArray *lines;
@@ -312,7 +557,7 @@ static void StepDownAppendInline(NSMutableAttributedString *target, NSString *te
             [trimmed characterAtIndex:headingLevel] == ' ') {
             content = [trimmed substringFromIndex:headingLevel + 1];
             headingFont = StepDownFont(@"Helvetica", 25.0 - (CGFloat)(headingLevel * 2), YES, NO);
-            StepDownAppendInline(out, content, headingFont);
+            StepDownAppendInline(out, content, headingFont, baseURL, maxImageWidth);
             piece = [[[NSMutableAttributedString alloc] initWithString:@"\n"
                 attributes:StepDownAttrs(bodyFont, bodyColor)] autorelease];
             [out appendAttributedString:piece];
@@ -325,7 +570,7 @@ static void StepDownAppendInline(NSMutableAttributedString *target, NSString *te
             piece = [[[NSMutableAttributedString alloc] initWithString:prefix
                 attributes:StepDownAttrs(codeFont, mutedColor)] autorelease];
             [out appendAttributedString:piece];
-            StepDownAppendInline(out, content, bodyFont);
+            StepDownAppendInline(out, content, bodyFont, baseURL, maxImageWidth);
             piece = [[[NSMutableAttributedString alloc] initWithString:@"\n"
                 attributes:StepDownAttrs(bodyFont, bodyColor)] autorelease];
             [out appendAttributedString:piece];
@@ -339,7 +584,7 @@ static void StepDownAppendInline(NSMutableAttributedString *target, NSString *te
             piece = [[[NSMutableAttributedString alloc] initWithString:@"  - "
                 attributes:StepDownAttrs(bodyFont, bodyColor)] autorelease];
             [out appendAttributedString:piece];
-            StepDownAppendInline(out, content, bodyFont);
+            StepDownAppendInline(out, content, bodyFont, baseURL, maxImageWidth);
             piece = [[[NSMutableAttributedString alloc] initWithString:@"\n"
                 attributes:StepDownAttrs(bodyFont, bodyColor)] autorelease];
             [out appendAttributedString:piece];
@@ -352,14 +597,14 @@ static void StepDownAppendInline(NSMutableAttributedString *target, NSString *te
                 [NSString stringWithFormat:@"  %@ ", [trimmed substringToIndex:markerLength]]
                 attributes:StepDownAttrs(bodyFont, bodyColor)] autorelease];
             [out appendAttributedString:piece];
-            StepDownAppendInline(out, content, bodyFont);
+            StepDownAppendInline(out, content, bodyFont, baseURL, maxImageWidth);
             piece = [[[NSMutableAttributedString alloc] initWithString:@"\n"
                 attributes:StepDownAttrs(bodyFont, bodyColor)] autorelease];
             [out appendAttributedString:piece];
             continue;
         }
 
-        StepDownAppendInline(out, trimmed, bodyFont);
+        StepDownAppendInline(out, trimmed, bodyFont, baseURL, maxImageWidth);
         piece = [[[NSMutableAttributedString alloc] initWithString:@"\n"
             attributes:StepDownAttrs(bodyFont, bodyColor)] autorelease];
         [out appendAttributedString:piece];
