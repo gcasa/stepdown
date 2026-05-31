@@ -4,6 +4,16 @@ StepDown is a small GNUstep/Cocoa Markdown viewer and creator written in
 Objective-C using Objective-C 1.0 style. It provides a split editor/preview
 window, file open/save/save-as, and live Markdown rendering without WebKit.
 
+This app is meant to be small and simple.  It renders a subset of the
+markdown standard.  I will try to get it as close to 100% as possible without
+using WebKit (or the libs-webkitcef).
+
+## Future Plans
+
+- Add support for more of the MD standard.
+- Make Document oriented
+- Better support for code blocks.
+
 ## Features
 
 - Create, edit, open, and save Markdown files.
