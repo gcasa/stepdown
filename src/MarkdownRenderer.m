@@ -248,19 +248,7 @@ static NSArray *StepDownNormalizeTableRow(NSArray *row, NSUInteger columnCount)
     return normalized;
 }
 
-static NSString *StepDownRepeatCharacter(unichar ch, NSUInteger count)
-{
-    NSMutableString *out;
-    NSUInteger i;
-
-    out = [NSMutableString stringWithCapacity:count];
-    for (i = 0; i < count; i++) {
-        [out appendFormat:@"%C", ch];
-    }
-    return out;
-}
-
-static void StepDownAppendTable(NSMutableAttributedString *target, NSArray *rows, NSFont *font, NSColor *color)
+static NSImage *StepDownTableImageFromRows(NSArray *rows, NSFont *font, NSColor *textColor)
 {
     NSUInteger rowCount;
     NSUInteger columnCount;
@@ -271,57 +259,148 @@ static void StepDownAppendTable(NSMutableAttributedString *target, NSArray *rows
     NSString *cell;
     NSUInteger cellLength;
     NSUInteger width;
-    NSMutableString *line;
-    NSString *padded;
-    NSMutableAttributedString *piece;
+    NSDictionary *textAttrs;
+    NSDictionary *headerTextAttrs;
+    CGFloat hPadding;
+    CGFloat vPadding;
+    CGFloat rowHeight;
+    CGFloat tableWidth;
+    CGFloat tableHeight;
+    NSImage *image;
+    NSColor *borderColor;
+    NSColor *headerBackgroundColor;
+    NSColor *bodyBackgroundColor;
+    NSColor *headerTextColor;
+    CGFloat x;
+    CGFloat y;
+    CGFloat cellWidth;
+    NSRect cellRect;
+    NSSize textSize;
+    NSString *displayText;
+    NSPoint textPoint;
 
     rowCount = [rows count];
     if (rowCount == 0) {
-        return;
+        return nil;
     }
 
     columnCount = [[rows objectAtIndex:0] count];
+    if (columnCount == 0) {
+        return nil;
+    }
+
+    textAttrs = StepDownAttrs(font, textColor);
+    hPadding = 8.0;
+    vPadding = 5.0;
+    rowHeight = ceil([font ascender] - [font descender] + [font leading] + (vPadding * 2.0));
+    if (rowHeight < 20.0) {
+        rowHeight = 20.0;
+    }
+
     widths = [NSMutableArray arrayWithCapacity:columnCount];
     for (i = 0; i < columnCount; i++) {
-        [widths addObject:[NSNumber numberWithUnsignedInteger:3]];
+        [widths addObject:[NSNumber numberWithFloat:56.0]];
     }
 
     for (i = 0; i < rowCount; i++) {
         row = [rows objectAtIndex:i];
         for (j = 0; j < columnCount; j++) {
             cell = StepDownStripLinkMarkup([row objectAtIndex:j]);
-            cellLength = [cell length];
-            width = [[widths objectAtIndex:j] unsignedIntegerValue];
+            textSize = [cell sizeWithAttributes:textAttrs];
+            cellLength = (NSUInteger)ceil(textSize.width + (hPadding * 2.0));
+            width = (NSUInteger)ceil([[widths objectAtIndex:j] floatValue]);
             if (cellLength > width) {
                 [widths replaceObjectAtIndex:j withObject:[NSNumber numberWithUnsignedInteger:cellLength]];
             }
         }
     }
 
+    tableWidth = 1.0;
+    for (j = 0; j < columnCount; j++) {
+        tableWidth += [[widths objectAtIndex:j] floatValue] + 1.0;
+    }
+    tableHeight = 1.0 + ((CGFloat)rowCount * (rowHeight + 1.0));
+
+    image = [[[NSImage alloc] initWithSize:NSMakeSize(tableWidth, tableHeight)] autorelease];
+    if (image == nil) {
+        return nil;
+    }
+
+    borderColor = [NSColor colorWithCalibratedWhite:0.76 alpha:1.0];
+    headerBackgroundColor = [NSColor colorWithCalibratedWhite:0.93 alpha:1.0];
+    bodyBackgroundColor = [NSColor textBackgroundColor];
+    headerTextColor = [NSColor colorWithCalibratedWhite:0.08 alpha:1.0];
+    headerTextAttrs = StepDownAttrs(font, headerTextColor);
+
+    [image lockFocus];
+    [[NSColor clearColor] setFill];
+    NSRectFill(NSMakeRect(0, 0, tableWidth, tableHeight));
+
+    y = tableHeight - 1.0;
     for (i = 0; i < rowCount; i++) {
         row = [rows objectAtIndex:i];
-        line = [NSMutableString stringWithString:@"|"];
-        for (j = 0; j < columnCount; j++) {
-            cell = StepDownStripLinkMarkup([row objectAtIndex:j]);
-            width = [[widths objectAtIndex:j] unsignedIntegerValue];
-            padded = [cell stringByPaddingToLength:width withString:@" " startingAtIndex:0];
-            [line appendFormat:@" %@ |", padded];
-        }
-        [line appendString:@"\n"];
-        piece = [[[NSMutableAttributedString alloc] initWithString:line attributes:StepDownAttrs(font, color)] autorelease];
-        [target appendAttributedString:piece];
 
-        if (i == 0) {
-            line = [NSMutableString stringWithString:@"|"];
-            for (j = 0; j < columnCount; j++) {
-                width = [[widths objectAtIndex:j] unsignedIntegerValue];
-                [line appendFormat:@" %@ |", StepDownRepeatCharacter('-', width)];
+        y -= rowHeight;
+        x = 1.0;
+        for (j = 0; j < columnCount; j++) {
+            cellWidth = [[widths objectAtIndex:j] floatValue];
+            cellRect = NSMakeRect(x, y, cellWidth, rowHeight);
+
+            if (i == 0) {
+                [headerBackgroundColor setFill];
+            } else {
+                [bodyBackgroundColor setFill];
             }
-            [line appendString:@"\n"];
-            piece = [[[NSMutableAttributedString alloc] initWithString:line attributes:StepDownAttrs(font, color)] autorelease];
-            [target appendAttributedString:piece];
+            NSRectFill(cellRect);
+
+            displayText = StepDownStripLinkMarkup([row objectAtIndex:j]);
+            if (i == 0) {
+                textSize = [displayText sizeWithAttributes:headerTextAttrs];
+            } else {
+                textSize = [displayText sizeWithAttributes:textAttrs];
+            }
+            textPoint = NSMakePoint(x + hPadding,
+                                    y + floor((rowHeight - textSize.height) / 2.0));
+            if (i == 0) {
+                [displayText drawAtPoint:textPoint withAttributes:headerTextAttrs];
+            } else {
+                [displayText drawAtPoint:textPoint withAttributes:textAttrs];
+            }
+
+            [borderColor setStroke];
+            [NSBezierPath strokeRect:cellRect];
+
+            x += cellWidth + 1.0;
         }
+
+        y -= 1.0;
     }
+
+    [image unlockFocus];
+    return image;
+}
+
+static void StepDownAppendTable(NSMutableAttributedString *target, NSArray *rows, NSFont *font, NSColor *color)
+{
+    NSImage *image;
+    NSTextAttachment *attachment;
+    NSTextAttachmentCell *cell;
+    NSMutableAttributedString *piece;
+
+    image = StepDownTableImageFromRows(rows, font, color);
+    if (image == nil) {
+        return;
+    }
+
+    attachment = [[[NSTextAttachment alloc] init] autorelease];
+    cell = [[[NSTextAttachmentCell alloc] initImageCell:image] autorelease];
+    [attachment setAttachmentCell:cell];
+
+    piece = [[[NSMutableAttributedString alloc] initWithAttributedString:[NSAttributedString attributedStringWithAttachment:attachment]] autorelease];
+    [target appendAttributedString:piece];
+
+    piece = [[[NSMutableAttributedString alloc] initWithString:@"\n" attributes:StepDownAttrs(font, color)] autorelease];
+    [target appendAttributedString:piece];
 }
 
 static NSMutableDictionary *StepDownImageCache(void)
