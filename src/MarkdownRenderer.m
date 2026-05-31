@@ -28,6 +28,16 @@ static NSFont *StepDownFont(NSString *family, CGFloat size, BOOL bold, BOOL ital
     return font;
 }
 
+static NSColor *StepDownPreviewTextColor(void)
+{
+    return [NSColor blackColor];
+}
+
+static NSColor *StepDownPreviewMutedTextColor(void)
+{
+    return [NSColor colorWithCalibratedWhite:0.35 alpha:1.0];
+}
+
 static NSDictionary *StepDownAttrs(NSFont *font, NSColor *color)
 {
     return [NSDictionary dictionaryWithObjectsAndKeys:
@@ -328,7 +338,7 @@ static NSImage *StepDownTableImageFromRows(NSArray *rows, NSFont *font, NSColor 
 
     borderColor = [NSColor colorWithCalibratedWhite:0.76 alpha:1.0];
     headerBackgroundColor = [NSColor colorWithCalibratedWhite:0.93 alpha:1.0];
-    bodyBackgroundColor = [NSColor textBackgroundColor];
+    bodyBackgroundColor = [NSColor whiteColor];
     headerTextColor = [NSColor colorWithCalibratedWhite:0.08 alpha:1.0];
     headerTextAttrs = StepDownAttrs(font, headerTextColor);
 
@@ -609,7 +619,7 @@ static void StepDownAppendImage(NSMutableAttributedString *target, NSString *sou
     image = StepDownImageFromSource(source, baseURL);
     if (image == nil) {
         if ([altText length] > 0) {
-            piece = [[[NSMutableAttributedString alloc] initWithString:altText attributes:StepDownAttrs(baseFont, [NSColor textColor])] autorelease];
+            piece = [[[NSMutableAttributedString alloc] initWithString:altText attributes:StepDownAttrs(baseFont, StepDownPreviewTextColor())] autorelease];
             [target appendAttributedString:piece];
         }
         return;
@@ -646,7 +656,7 @@ static void StepDownAppendInline(NSMutableAttributedString *target, NSString *te
     NSColor *codeColor;
     NSMutableAttributedString *piece;
 
-    bodyColor = [NSColor textColor];
+    bodyColor = StepDownPreviewTextColor();
     codeColor = [NSColor colorWithCalibratedRed:0.58 green:0.12 blue:0.12 alpha:1.0];
     boldFont = StepDownFont([baseFont familyName], [baseFont pointSize], YES, NO);
     italicFont = StepDownFont([baseFont familyName], [baseFont pointSize], NO, YES);
@@ -751,8 +761,8 @@ static void StepDownAppendInline(NSMutableAttributedString *target, NSString *te
     if (codeFont == nil) {
         codeFont = bodyFont;
     }
-    bodyColor = [NSColor textColor];
-    mutedColor = [NSColor secondarySelectedControlColor];
+    bodyColor = StepDownPreviewTextColor();
+    mutedColor = StepDownPreviewMutedTextColor();
     inCode = NO;
     count = [lines count];
 

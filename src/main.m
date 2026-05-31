@@ -12,9 +12,6 @@ int main(int argc, const char **argv)
     NSAutoreleasePool *pool;
     AppDelegate *delegate;
 
-    (void)argc;
-    (void)argv;
-
     pool = [[NSAutoreleasePool alloc] init];
     [NSApplication sharedApplication];
 

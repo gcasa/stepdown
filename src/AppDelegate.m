@@ -48,6 +48,7 @@ static NSString *StepDownInitialMarkdown(void)
     } else {
         [[editorView textStorage] setAttributedString:
             [[[NSAttributedString alloc] initWithString:StepDownInitialMarkdown()] autorelease]];
+        [self applyEditorThemeToCurrentText];
         [self updatePreview];
     }
 }
@@ -90,16 +91,28 @@ static NSString *StepDownInitialMarkdown(void)
     NSMenu *mainMenu;
     NSMenu *appMenu;
     NSMenu *fileMenu;
+    NSMenu *editMenu;
     NSMenuItem *appItem;
     NSMenuItem *fileItem;
+    NSMenuItem *editItem;
     NSString *quitTitle;
+    NSString *appName;
 
+    appName = [[NSProcessInfo processInfo] processName];
+    if (appName == nil || [appName length] == 0) {
+        appName = @"StepDown";
+    }
+
+#ifdef __APPLE__
     mainMenu = [[[NSMenu alloc] initWithTitle:@"Main Menu"] autorelease];
+#else
+    mainMenu = [[[NSMenu alloc] initWithTitle:appName] autorelease];
+#endif
 
-    appItem = [[[NSMenuItem alloc] initWithTitle:@"StepDown" action:NULL keyEquivalent:@""] autorelease];
+    appItem = [[[NSMenuItem alloc] initWithTitle:appName action:NULL keyEquivalent:@""] autorelease];
     [mainMenu addItem:appItem];
-    appMenu = [[[NSMenu alloc] initWithTitle:@"StepDown"] autorelease];
-    quitTitle = @"Quit StepDown";
+    appMenu = [[[NSMenu alloc] initWithTitle:appName] autorelease];
+    quitTitle = [NSString stringWithFormat:@"Quit %@", appName];
     [appMenu addItemWithTitle:quitTitle action:@selector(terminate:) keyEquivalent:@"q"];
     [appItem setSubmenu:appMenu];
 
@@ -111,6 +124,16 @@ static NSString *StepDownInitialMarkdown(void)
     [fileMenu addItemWithTitle:@"Save" action:@selector(saveDocument:) keyEquivalent:@"s"];
     [fileMenu addItemWithTitle:@"Save As..." action:@selector(saveDocumentAs:) keyEquivalent:@"S"];
     [fileItem setSubmenu:fileMenu];
+
+    editItem = [[[NSMenuItem alloc] initWithTitle:@"Edit" action:NULL keyEquivalent:@""] autorelease];
+    [mainMenu addItem:editItem];
+    editMenu = [[[NSMenu alloc] initWithTitle:@"Edit"] autorelease];
+    [editMenu addItemWithTitle:@"Cut" action:@selector(cut:) keyEquivalent:@"x"];
+    [editMenu addItemWithTitle:@"Copy" action:@selector(copy:) keyEquivalent:@"c"];
+    [editMenu addItemWithTitle:@"Paste" action:@selector(paste:) keyEquivalent:@"v"];
+    [editMenu addItem:[NSMenuItem separatorItem]];
+    [editMenu addItemWithTitle:@"Select All" action:@selector(selectAll:) keyEquivalent:@"a"];
+    [editItem setSubmenu:editMenu];
 
     [NSApp setMainMenu:mainMenu];
 }
@@ -169,12 +192,17 @@ static NSString *StepDownInitialMarkdown(void)
     [editorView setRichText:NO];
     [editorView setUsesFontPanel:NO];
     [editorView setDelegate:self];
+    [editorView setTextColor:[NSColor whiteColor]];
+    [editorView setBackgroundColor:[NSColor colorWithCalibratedWhite:0.12 alpha:1.0]];
+    [editorView setInsertionPointColor:[NSColor whiteColor]];
 
     [previewView setEditable:NO];
     [previewView setSelectable:YES];
     [previewView setRichText:YES];
     [previewView setImportsGraphics:YES];
     [previewView setUsesFontPanel:NO];
+    [previewView setBackgroundColor:[NSColor whiteColor]];
+    [previewView setTextColor:[NSColor blackColor]];
 
     editorScroll = [self scrollViewForTextView:editorView];
     previewScroll = [self scrollViewForTextView:previewView];
@@ -183,6 +211,33 @@ static NSString *StepDownInitialMarkdown(void)
 
     [[window contentView] addSubview:splitView];
     [window makeKeyAndOrderFront:nil];
+}
+
+- (void)applyEditorThemeToCurrentText
+{
+    NSRange fullRange;
+    NSMutableDictionary *typingAttrs;
+
+    if (editorView == nil) {
+        return;
+    }
+
+    [editorView setTextColor:[NSColor whiteColor]];
+    [editorView setInsertionPointColor:[NSColor whiteColor]];
+
+    fullRange = NSMakeRange(0, [[editorView string] length]);
+    if (fullRange.length > 0) {
+        [[editorView textStorage] addAttribute:NSForegroundColorAttributeName
+            value:[NSColor whiteColor]
+            range:fullRange];
+    }
+
+    typingAttrs = [NSMutableDictionary dictionaryWithDictionary:[editorView typingAttributes]];
+    if ([editorView font] != nil) {
+        [typingAttrs setObject:[editorView font] forKey:NSFontAttributeName];
+    }
+    [typingAttrs setObject:[NSColor whiteColor] forKey:NSForegroundColorAttributeName];
+    [editorView setTypingAttributes:typingAttrs];
 }
 
 - (void)textDidChange:(NSNotification *)notification
@@ -234,6 +289,7 @@ static NSString *StepDownInitialMarkdown(void)
     currentPath = nil;
     [[editorView textStorage] setAttributedString:
         [[[NSAttributedString alloc] initWithString:@"# Untitled\n\n"] autorelease]];
+    [self applyEditorThemeToCurrentText];
     dirty = NO;
     [self updateWindowTitle];
     [self updatePreview];
@@ -282,6 +338,7 @@ static NSString *StepDownInitialMarkdown(void)
     currentPath = [path copy];
     [[editorView textStorage] setAttributedString:
         [[[NSAttributedString alloc] initWithString:contents] autorelease]];
+    [self applyEditorThemeToCurrentText];
     dirty = NO;
     [self updateWindowTitle];
     [self updatePreview];
