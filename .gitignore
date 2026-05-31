@@ -4,3 +4,4 @@ obj/
 *.d
 *.o
 *~
+.DS_Store
