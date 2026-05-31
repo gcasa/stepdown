@@ -161,6 +161,169 @@ static NSString *StepDownStripLinkMarkup(NSString *text)
     return out;
 }
 
+static BOOL StepDownLineHasPipe(NSString *line)
+{
+    return [line rangeOfString:@"|"].location != NSNotFound;
+}
+
+static NSArray *StepDownTableCellsFromLine(NSString *line)
+{
+    NSString *trimmed;
+    NSArray *parts;
+    NSMutableArray *cells;
+    NSUInteger i;
+    NSUInteger count;
+    NSString *part;
+
+    trimmed = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+    if ([trimmed hasPrefix:@"|"]) {
+        trimmed = [trimmed substringFromIndex:1];
+    }
+    if ([trimmed hasSuffix:@"|"] && [trimmed length] > 0) {
+        trimmed = [trimmed substringToIndex:[trimmed length] - 1];
+    }
+
+    parts = [trimmed componentsSeparatedByString:@"|"];
+    cells = [NSMutableArray arrayWithCapacity:[parts count]];
+    count = [parts count];
+    for (i = 0; i < count; i++) {
+        part = [[parts objectAtIndex:i] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+        [cells addObject:part];
+    }
+    return cells;
+}
+
+static BOOL StepDownIsTableSeparatorLine(NSString *line)
+{
+    NSArray *cells;
+    NSUInteger i;
+    NSUInteger count;
+    NSString *cell;
+    NSUInteger j;
+    NSUInteger length;
+    unichar ch;
+    BOOL hasDash;
+
+    cells = StepDownTableCellsFromLine(line);
+    count = [cells count];
+    if (count == 0) {
+        return NO;
+    }
+
+    hasDash = NO;
+    for (i = 0; i < count; i++) {
+        cell = [cells objectAtIndex:i];
+        length = [cell length];
+        if (length == 0) {
+            return NO;
+        }
+        for (j = 0; j < length; j++) {
+            ch = [cell characterAtIndex:j];
+            if (ch == '-') {
+                hasDash = YES;
+                continue;
+            }
+            if (ch != ':') {
+                return NO;
+            }
+        }
+    }
+
+    return hasDash;
+}
+
+static NSArray *StepDownNormalizeTableRow(NSArray *row, NSUInteger columnCount)
+{
+    NSMutableArray *normalized;
+    NSUInteger i;
+
+    normalized = [NSMutableArray arrayWithCapacity:columnCount];
+    for (i = 0; i < columnCount; i++) {
+        if (i < [row count]) {
+            [normalized addObject:[row objectAtIndex:i]];
+        } else {
+            [normalized addObject:@""];
+        }
+    }
+    return normalized;
+}
+
+static NSString *StepDownRepeatCharacter(unichar ch, NSUInteger count)
+{
+    NSMutableString *out;
+    NSUInteger i;
+
+    out = [NSMutableString stringWithCapacity:count];
+    for (i = 0; i < count; i++) {
+        [out appendFormat:@"%C", ch];
+    }
+    return out;
+}
+
+static void StepDownAppendTable(NSMutableAttributedString *target, NSArray *rows, NSFont *font, NSColor *color)
+{
+    NSUInteger rowCount;
+    NSUInteger columnCount;
+    NSMutableArray *widths;
+    NSUInteger i;
+    NSUInteger j;
+    NSArray *row;
+    NSString *cell;
+    NSUInteger cellLength;
+    NSUInteger width;
+    NSMutableString *line;
+    NSString *padded;
+    NSMutableAttributedString *piece;
+
+    rowCount = [rows count];
+    if (rowCount == 0) {
+        return;
+    }
+
+    columnCount = [[rows objectAtIndex:0] count];
+    widths = [NSMutableArray arrayWithCapacity:columnCount];
+    for (i = 0; i < columnCount; i++) {
+        [widths addObject:[NSNumber numberWithUnsignedInteger:3]];
+    }
+
+    for (i = 0; i < rowCount; i++) {
+        row = [rows objectAtIndex:i];
+        for (j = 0; j < columnCount; j++) {
+            cell = StepDownStripLinkMarkup([row objectAtIndex:j]);
+            cellLength = [cell length];
+            width = [[widths objectAtIndex:j] unsignedIntegerValue];
+            if (cellLength > width) {
+                [widths replaceObjectAtIndex:j withObject:[NSNumber numberWithUnsignedInteger:cellLength]];
+            }
+        }
+    }
+
+    for (i = 0; i < rowCount; i++) {
+        row = [rows objectAtIndex:i];
+        line = [NSMutableString stringWithString:@"|"];
+        for (j = 0; j < columnCount; j++) {
+            cell = StepDownStripLinkMarkup([row objectAtIndex:j]);
+            width = [[widths objectAtIndex:j] unsignedIntegerValue];
+            padded = [cell stringByPaddingToLength:width withString:@" " startingAtIndex:0];
+            [line appendFormat:@" %@ |", padded];
+        }
+        [line appendString:@"\n"];
+        piece = [[[NSMutableAttributedString alloc] initWithString:line attributes:StepDownAttrs(font, color)] autorelease];
+        [target appendAttributedString:piece];
+
+        if (i == 0) {
+            line = [NSMutableString stringWithString:@"|"];
+            for (j = 0; j < columnCount; j++) {
+                width = [[widths objectAtIndex:j] unsignedIntegerValue];
+                [line appendFormat:@" %@ |", StepDownRepeatCharacter('-', width)];
+            }
+            [line appendString:@"\n"];
+            piece = [[[NSMutableAttributedString alloc] initWithString:line attributes:StepDownAttrs(font, color)] autorelease];
+            [target appendAttributedString:piece];
+        }
+    }
+}
+
 static NSMutableDictionary *StepDownImageCache(void)
 {
     static NSMutableDictionary *cache = nil;
@@ -515,6 +678,15 @@ static void StepDownAppendInline(NSMutableAttributedString *target, NSString *te
     count = [lines count];
 
     for (i = 0; i < count; i++) {
+        NSUInteger separatorIndex;
+        NSUInteger rowIndex;
+        NSMutableArray *rawRows;
+        NSArray *headerCells;
+        NSArray *rowCells;
+        NSArray *normalizedRow;
+        NSMutableArray *normalizedRows;
+        NSUInteger columnCount;
+
         line = [lines objectAtIndex:i];
         trimmed = StepDownTrimLeft(line);
 
@@ -529,6 +701,78 @@ static void StepDownAppendInline(NSMutableAttributedString *target, NSString *te
                 attributes:StepDownAttrs(codeFont, bodyColor)] autorelease];
             [out appendAttributedString:piece];
             continue;
+        }
+
+        if (StepDownLineHasPipe(trimmed)) {
+            separatorIndex = i + 1;
+            while (separatorIndex < count) {
+                NSString *candidate;
+
+                candidate = StepDownTrimLeft([lines objectAtIndex:separatorIndex]);
+                if ([candidate length] == 0) {
+                    separatorIndex++;
+                    continue;
+                }
+                break;
+            }
+
+            if (separatorIndex < count) {
+                NSString *separatorLine;
+
+                separatorLine = StepDownTrimLeft([lines objectAtIndex:separatorIndex]);
+                if (StepDownIsTableSeparatorLine(separatorLine)) {
+                    rawRows = [NSMutableArray array];
+                    headerCells = StepDownTableCellsFromLine(trimmed);
+                    columnCount = [headerCells count];
+                    if (columnCount > 0) {
+                        [rawRows addObject:headerCells];
+
+                        rowIndex = separatorIndex + 1;
+                        while (rowIndex < count) {
+                            NSString *rowLine;
+
+                            rowLine = StepDownTrimLeft([lines objectAtIndex:rowIndex]);
+                            if ([rowLine length] == 0) {
+                                rowIndex++;
+                                continue;
+                            }
+                            if (!StepDownLineHasPipe(rowLine) || StepDownIsTableSeparatorLine(rowLine)) {
+                                break;
+                            }
+
+                            rowCells = StepDownTableCellsFromLine(rowLine);
+                            if ([rowCells count] > columnCount) {
+                                columnCount = [rowCells count];
+                            }
+                            [rawRows addObject:rowCells];
+                            rowIndex++;
+                        }
+
+                        normalizedRows = [NSMutableArray arrayWithCapacity:[rawRows count]];
+                        for (rowIndex = 0; rowIndex < [rawRows count]; rowIndex++) {
+                            normalizedRow = StepDownNormalizeTableRow([rawRows objectAtIndex:rowIndex], columnCount);
+                            [normalizedRows addObject:normalizedRow];
+                        }
+
+                        StepDownAppendTable(out, normalizedRows, codeFont, bodyColor);
+                        i = separatorIndex;
+                        while (i + 1 < count) {
+                            NSString *nextLine;
+
+                            nextLine = StepDownTrimLeft([lines objectAtIndex:i + 1]);
+                            if ([nextLine length] == 0) {
+                                i++;
+                                continue;
+                            }
+                            if (!StepDownLineHasPipe(nextLine) || StepDownIsTableSeparatorLine(nextLine)) {
+                                break;
+                            }
+                            i++;
+                        }
+                        continue;
+                    }
+                }
+            }
         }
 
         if ([trimmed length] == 0) {
