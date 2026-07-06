@@ -1,11 +1,5 @@
 #import "AppDelegate.h"
-#import "MarkdownRenderer.h"
-#import <float.h>
-
-static NSString *StepDownInitialMarkdown(void)
-{
-    return @"# Untitled\n\nStart writing Markdown on the left. The preview updates on the right.\n\n- Create notes\n- Open existing `.md` files\n- Save your work\n";
-}
+#import "StepDownDocument.h"
 
 @implementation AppDelegate
 
@@ -13,26 +7,24 @@ static NSString *StepDownInitialMarkdown(void)
 {
     self = [super init];
     if (self != nil) {
-        window = nil;
-        editorView = nil;
-        previewView = nil;
-        currentPath = nil;
-        pendingOpenPath = nil;
-        dirty = NO;
+        documents = [[NSMutableArray alloc] init];
+        pendingOpenPaths = [[NSMutableArray alloc] init];
+        finishedLaunching = NO;
     }
     return self;
 }
 
 - (void)dealloc
 {
-    [currentPath release];
-    [pendingOpenPath release];
+    [documents release];
+    [pendingOpenPaths release];
     [super dealloc];
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification
 {
     NSImage *icon;
+    NSUInteger i;
 
     icon = [NSImage imageNamed:@"StepDown"];
     if (icon != nil) {
@@ -40,50 +32,61 @@ static NSString *StepDownInitialMarkdown(void)
     }
 
     [self buildMenu];
-    [self buildWindow];
-    if (pendingOpenPath != nil) {
-        [self openDocumentAtPath:pendingOpenPath confirmingDiscard:NO];
-        [pendingOpenPath release];
-        pendingOpenPath = nil;
+    finishedLaunching = YES;
+    if ([pendingOpenPaths count] > 0) {
+        for (i = 0; i < [pendingOpenPaths count]; i++) {
+            [self openDocumentAtPath:[pendingOpenPaths objectAtIndex:i]];
+        }
+        [pendingOpenPaths removeAllObjects];
     } else {
-        [[editorView textStorage] setAttributedString:
-            [[[NSAttributedString alloc] initWithString:StepDownInitialMarkdown()] autorelease]];
-        [self applyEditorThemeToCurrentText];
-        [self updatePreview];
+        [self newDocument:nil];
     }
 }
 
 - (BOOL)application:(NSApplication *)application openFile:(NSString *)filename
 {
-    if (window == nil || editorView == nil) {
-        [pendingOpenPath release];
-        pendingOpenPath = [filename copy];
+    if (!finishedLaunching) {
+        [pendingOpenPaths addObject:filename];
         return YES;
     }
-
-    return [self openDocumentAtPath:filename confirmingDiscard:YES];
+    return [self openDocumentAtPath:filename];
 }
 
 - (void)application:(NSApplication *)application openFiles:(NSArray *)filenames
 {
-    NSString *filename;
+    NSUInteger i;
+    BOOL openedAny;
 
-    if ([filenames count] == 0) {
-        [application replyToOpenOrPrint:NSApplicationDelegateReplyFailure];
-        return;
+    openedAny = NO;
+    for (i = 0; i < [filenames count]; i++) {
+        if ([self application:application openFile:[filenames objectAtIndex:i]]) {
+            openedAny = YES;
+        }
     }
 
-    filename = [filenames objectAtIndex:0];
-    if ([self application:application openFile:filename]) {
-        [application replyToOpenOrPrint:NSApplicationDelegateReplySuccess];
-    } else {
-        [application replyToOpenOrPrint:NSApplicationDelegateReplyFailure];
-    }
+    [application replyToOpenOrPrint:
+        openedAny ? NSApplicationDelegateReplySuccess : NSApplicationDelegateReplyFailure];
 }
 
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)application
 {
     return YES;
+}
+
+- (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender
+{
+    NSArray *snapshot;
+    NSUInteger i;
+    StepDownDocument *document;
+
+    snapshot = [NSArray arrayWithArray:documents];
+    for (i = 0; i < [snapshot count]; i++) {
+        document = [snapshot objectAtIndex:i];
+        if (![document canCloseDocument]) {
+            return NSTerminateCancel;
+        }
+    }
+    return NSTerminateNow;
 }
 
 - (void)buildMenu
@@ -138,259 +141,97 @@ static NSString *StepDownInitialMarkdown(void)
     [NSApp setMainMenu:mainMenu];
 }
 
-- (NSScrollView *)scrollViewForTextView:(NSTextView *)textView
+- (StepDownDocument *)activeDocument
 {
-    NSScrollView *scrollView;
+    NSUInteger i;
+    StepDownDocument *document;
 
-    scrollView = [[[NSScrollView alloc] initWithFrame:NSMakeRect(0, 0, 100, 100)] autorelease];
-    [scrollView setHasVerticalScroller:YES];
-    [scrollView setHasHorizontalScroller:NO];
-    [scrollView setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
-    [textView setMinSize:NSMakeSize(0, 0)];
-    [textView setMaxSize:NSMakeSize(FLT_MAX, FLT_MAX)];
-    [textView setVerticallyResizable:YES];
-    [textView setHorizontallyResizable:NO];
-    [textView setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
-    [[textView textContainer] setContainerSize:NSMakeSize(FLT_MAX, FLT_MAX)];
-    [[textView textContainer] setWidthTracksTextView:YES];
-    [scrollView setDocumentView:textView];
-    return scrollView;
-}
-
-- (void)buildWindow
-{
-    NSRect frame;
-    NSUInteger style;
-    NSSplitView *splitView;
-    NSScrollView *editorScroll;
-    NSScrollView *previewScroll;
-    NSFont *editorFont;
-
-    frame = NSMakeRect(100, 100, 1000, 650);
-    style = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
-    window = [[NSWindow alloc] initWithContentRect:frame
-        styleMask:style
-        backing:NSBackingStoreBuffered
-        defer:NO];
-    [window setTitle:@"StepDown"];
-    [window setDelegate:self];
-
-    splitView = [[[NSSplitView alloc] initWithFrame:[[window contentView] bounds]] autorelease];
-    [splitView setVertical:YES];
-    [splitView setDividerStyle:NSSplitViewDividerStyleThin];
-    [splitView setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
-    [splitView setDelegate:self];
-
-    editorView = [[NSTextView alloc] initWithFrame:NSMakeRect(0, 0, 500, 650)];
-    previewView = [[NSTextView alloc] initWithFrame:NSMakeRect(0, 0, 500, 650)];
-
-    editorFont = [NSFont userFixedPitchFontOfSize:13.0];
-    if (editorFont == nil) {
-        editorFont = [NSFont systemFontOfSize:13.0];
-    }
-    [editorView setFont:editorFont];
-    [editorView setRichText:NO];
-    [editorView setUsesFontPanel:NO];
-    [editorView setDelegate:self];
-    [editorView setTextColor:[NSColor whiteColor]];
-    [editorView setBackgroundColor:[NSColor colorWithCalibratedWhite:0.12 alpha:1.0]];
-    [editorView setInsertionPointColor:[NSColor whiteColor]];
-
-    [previewView setEditable:NO];
-    [previewView setSelectable:YES];
-    [previewView setRichText:YES];
-    [previewView setImportsGraphics:YES];
-    [previewView setUsesFontPanel:NO];
-    [previewView setBackgroundColor:[NSColor whiteColor]];
-    [previewView setTextColor:[NSColor blackColor]];
-
-    editorScroll = [self scrollViewForTextView:editorView];
-    previewScroll = [self scrollViewForTextView:previewView];
-    [splitView addSubview:editorScroll];
-    [splitView addSubview:previewScroll];
-
-    [[window contentView] addSubview:splitView];
-    [window makeKeyAndOrderFront:nil];
-}
-
-- (void)applyEditorThemeToCurrentText
-{
-    NSRange fullRange;
-    NSMutableDictionary *typingAttrs;
-
-    if (editorView == nil) {
-        return;
+    for (i = 0; i < [documents count]; i++) {
+        document = [documents objectAtIndex:i];
+        if ([document isKeyDocument]) {
+            return document;
+        }
     }
 
-    [editorView setTextColor:[NSColor whiteColor]];
-    [editorView setInsertionPointColor:[NSColor whiteColor]];
-
-    fullRange = NSMakeRange(0, [[editorView string] length]);
-    if (fullRange.length > 0) {
-        [[editorView textStorage] addAttribute:NSForegroundColorAttributeName
-            value:[NSColor whiteColor]
-            range:fullRange];
+    if ([documents count] > 0) {
+        return [documents lastObject];
     }
-
-    typingAttrs = [NSMutableDictionary dictionaryWithDictionary:[editorView typingAttributes]];
-    if ([editorView font] != nil) {
-        [typingAttrs setObject:[editorView font] forKey:NSFontAttributeName];
-    }
-    [typingAttrs setObject:[NSColor whiteColor] forKey:NSForegroundColorAttributeName];
-    [editorView setTypingAttributes:typingAttrs];
-}
-
-- (void)textDidChange:(NSNotification *)notification
-{
-    dirty = YES;
-    [self updateWindowTitle];
-    [self updatePreview];
-}
-
-- (void)updateWindowTitle
-{
-    NSString *name;
-    NSString *title;
-
-    if (currentPath != nil) {
-        name = [currentPath lastPathComponent];
-    } else {
-        name = @"Untitled";
-    }
-    title = dirty ? [NSString stringWithFormat:@"%@ - Edited", name] : name;
-    [window setTitle:[NSString stringWithFormat:@"StepDown - %@", title]];
-}
-
-- (BOOL)confirmDiscardIfNeeded
-{
-    int result;
-    NSAlert *alert;
-
-    if (!dirty) {
-        return YES;
-    }
-
-    alert = [[[NSAlert alloc] init] autorelease];
-    [alert setMessageText:@"Discard unsaved changes?"];
-    [alert setInformativeText:@"The current document has changes that have not been saved."];
-    [alert addButtonWithTitle:@"Discard"];
-    [alert addButtonWithTitle:@"Cancel"];
-    result = [alert runModal];
-    return result == NSAlertFirstButtonReturn;
+    return nil;
 }
 
 - (void)newDocument:(id)sender
 {
-    if (![self confirmDiscardIfNeeded]) {
-        return;
-    }
+    StepDownDocument *document;
 
-    [currentPath release];
-    currentPath = nil;
-    [[editorView textStorage] setAttributedString:
-        [[[NSAttributedString alloc] initWithString:@"# Untitled\n\n"] autorelease]];
-    [self applyEditorThemeToCurrentText];
-    dirty = NO;
-    [self updateWindowTitle];
-    [self updatePreview];
+    document = [[StepDownDocument alloc] initWithDelegate:self];
+    [documents addObject:document];
+    [document showWindow];
+    [document release];
 }
 
 - (void)openDocument:(id)sender
 {
     NSOpenPanel *panel;
     int result;
-    NSString *path;
     NSArray *types;
-
-    if (![self confirmDiscardIfNeeded]) {
-        return;
-    }
+    NSArray *filenames;
+    NSUInteger i;
 
     panel = [NSOpenPanel openPanel];
     types = [NSArray arrayWithObjects:@"md", @"markdown", @"txt", nil];
-    [panel setAllowsMultipleSelection:NO];
+    [panel setAllowsMultipleSelection:YES];
     result = [panel runModalForTypes:types];
     if (result != NSOKButton) {
         return;
     }
 
-    path = [panel filename];
-    [self openDocumentAtPath:path confirmingDiscard:NO];
+    filenames = [panel filenames];
+    for (i = 0; i < [filenames count]; i++) {
+        [self openDocumentAtPath:[filenames objectAtIndex:i]];
+    }
 }
 
-- (BOOL)openDocumentAtPath:(NSString *)path confirmingDiscard:(BOOL)confirm
+- (BOOL)openDocumentAtPath:(NSString *)path
 {
-    NSString *contents;
+    StepDownDocument *document;
     NSError *error;
 
-    if (confirm && ![self confirmDiscardIfNeeded]) {
-        return NO;
-    }
-
     error = nil;
-    contents = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:&error];
-    if (contents == nil) {
+    document = [[StepDownDocument alloc] initWithPath:path delegate:self error:&error];
+    if (document == nil) {
         [self showError:@"Could not open the selected file."];
         return NO;
     }
 
-    [currentPath release];
-    currentPath = [path copy];
-    [[editorView textStorage] setAttributedString:
-        [[[NSAttributedString alloc] initWithString:contents] autorelease]];
-    [self applyEditorThemeToCurrentText];
-    dirty = NO;
-    [self updateWindowTitle];
-    [self updatePreview];
+    [documents addObject:document];
+    [document showWindow];
+    [document release];
     return YES;
 }
 
 - (void)saveDocument:(id)sender
 {
-    if (currentPath == nil) {
-        [self saveDocumentAs:sender];
-        return;
+    StepDownDocument *document;
+
+    document = [self activeDocument];
+    if (document != nil) {
+        [document saveDocument:sender];
     }
-    [self writeToPath:currentPath];
 }
 
 - (void)saveDocumentAs:(id)sender
 {
-    NSSavePanel *panel;
-    int result;
-    NSString *path;
+    StepDownDocument *document;
 
-    panel = [NSSavePanel savePanel];
-    [panel setRequiredFileType:@"md"];
-    result = [panel runModal];
-    if (result != NSOKButton) {
-        return;
-    }
-
-    path = [panel filename];
-    if ([self writeToPath:path]) {
-        [currentPath release];
-        currentPath = [path copy];
-        [self updateWindowTitle];
+    document = [self activeDocument];
+    if (document != nil) {
+        [document saveDocumentAs:sender];
     }
 }
 
-- (BOOL)writeToPath:(NSString *)path
+- (void)documentDidClose:(id)document
 {
-    NSString *text;
-    NSError *error;
-    BOOL ok;
-
-    text = [editorView string];
-    error = nil;
-    ok = [text writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:&error];
-    if (!ok) {
-        [self showError:@"Could not save the document."];
-        return NO;
-    }
-    dirty = NO;
-    [self updateWindowTitle];
-    return YES;
+    [documents removeObject:document];
 }
 
 - (void)showError:(NSString *)message
@@ -400,36 +241,6 @@ static NSString *StepDownInitialMarkdown(void)
     alert = [[[NSAlert alloc] init] autorelease];
     [alert setMessageText:message];
     [alert runModal];
-}
-
-- (void)updatePreview
-{
-    NSAttributedString *rendered;
-    NSURL *baseURL;
-    NSString *basePath;
-    CGFloat previewWidth;
-
-    if (currentPath != nil) {
-        basePath = [currentPath stringByDeletingLastPathComponent];
-    } else {
-        basePath = [[NSFileManager defaultManager] currentDirectoryPath];
-    }
-    baseURL = [NSURL fileURLWithPath:basePath];
-    previewWidth = NSWidth([previewView bounds]);
-    if (previewWidth > 24.0) {
-        previewWidth -= 24.0;
-    }
-    if (previewWidth < 200.0) {
-        previewWidth = 200.0;
-    }
-
-    rendered = [MarkdownRenderer attributedStringFromMarkdown:[editorView string] baseURL:baseURL maxImageWidth:previewWidth];
-    [[previewView textStorage] setAttributedString:rendered];
-}
-
-- (void)splitViewDidResizeSubviews:(NSNotification *)notification
-{
-    [self updatePreview];
 }
 
 @end

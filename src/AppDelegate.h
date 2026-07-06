@@ -10,21 +10,17 @@
 
 @interface AppDelegate : NSObject
 {
-    NSWindow *window;
-    NSTextView *editorView;
-    NSTextView *previewView;
-    NSString *currentPath;
-    NSString *pendingOpenPath;
-    BOOL dirty;
+    NSMutableArray *documents;
+    NSMutableArray *pendingOpenPaths;
+    BOOL finishedLaunching;
 }
 
 - (void)newDocument:(id)sender;
 - (void)openDocument:(id)sender;
 - (void)saveDocument:(id)sender;
 - (void)saveDocumentAs:(id)sender;
-- (BOOL)openDocumentAtPath:(NSString *)path confirmingDiscard:(BOOL)confirm;
-- (void)updatePreview;
-- (void)splitViewDidResizeSubviews:(NSNotification *)notification;
+- (BOOL)openDocumentAtPath:(NSString *)path;
+- (void)documentDidClose:(id)document;
 
 @end
 
