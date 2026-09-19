@@ -11,7 +11,7 @@ CONTENTS_DIR = $(APP_DIR)/Contents
 MACOS_DIR = $(CONTENTS_DIR)/MacOS
 RESOURCES_DIR = $(CONTENTS_DIR)/Resources
 BIN = $(MACOS_DIR)/$(APP_NAME)
-OBJCFLAGS = -std=gnu99 -Wall -Wextra -Wno-unused-parameter -fno-objc-arc
+OBJCFLAGS = -std=gnu11 -Wall -Wextra -Wno-unused-parameter -fno-objc-arc
 LDFLAGS = -framework Cocoa
 
 .PHONY: all clean run
@@ -35,7 +35,7 @@ clean:
 else
 GNUSTEP_CONFIG := $(shell command -v gnustep-config 2>/dev/null)
 OBJC = clang
-OBJCFLAGS = -std=gnu99 -Wall -Wextra -fconstant-string-class=NSConstantString $(shell gnustep-config --objc-flags)
+OBJCFLAGS = -std=gnu11 -Wall -Wextra -fconstant-string-class=NSConstantString $(shell gnustep-config --objc-flags)
 LDFLAGS = $(shell gnustep-config --gui-libs)
 OBJ_DIR = obj
 OBJ = $(SRC:src/%.m=$(OBJ_DIR)/%.o)
