@@ -93,9 +93,11 @@
 {
     NSMenu *mainMenu;
     NSMenu *appMenu;
+    NSMenu *infoMenu;
     NSMenu *fileMenu;
     NSMenu *editMenu;
     NSMenuItem *appItem;
+    NSMenuItem *infoItem;
     NSMenuItem *fileItem;
     NSMenuItem *editItem;
     NSString *quitTitle;
@@ -115,27 +117,34 @@
     appItem = [[[NSMenuItem alloc] initWithTitle:appName action:NULL keyEquivalent:@""] autorelease];
     [mainMenu addItem:appItem];
     appMenu = [[[NSMenu alloc] initWithTitle:appName] autorelease];
-    quitTitle = [NSString stringWithFormat:@"Quit %@", appName];
+    quitTitle = [NSString stringWithFormat:_(@"Quit %@"), appName];
     [appMenu addItemWithTitle:quitTitle action:@selector(terminate:) keyEquivalent:@"q"];
     [appItem setSubmenu:appMenu];
 
-    fileItem = [[[NSMenuItem alloc] initWithTitle:@"File" action:NULL keyEquivalent:@""] autorelease];
+    infoItem = [[[NSMenuItem alloc] initWithTitle:_(@"Info") action:NULL keyEquivalent:@""] autorelease];
+    [mainMenu addItem:infoItem];
+    infoMenu = [[[NSMenu alloc] initWithTitle:_(@"Info")] autorelease];
+    [infoMenu addItemWithTitle:_(@"Info Panel...")
+               action:@selector(orderFrontStandardInfoPanel:) keyEquivalent:@""];
+    [infoItem setSubmenu:infoMenu];
+  
+    fileItem = [[[NSMenuItem alloc] initWithTitle:_(@"File") action:NULL keyEquivalent:@""] autorelease];
     [mainMenu addItem:fileItem];
-    fileMenu = [[[NSMenu alloc] initWithTitle:@"File"] autorelease];
-    [fileMenu addItemWithTitle:@"New" action:@selector(newDocument:) keyEquivalent:@"n"];
-    [fileMenu addItemWithTitle:@"Open..." action:@selector(openDocument:) keyEquivalent:@"o"];
-    [fileMenu addItemWithTitle:@"Save" action:@selector(saveDocument:) keyEquivalent:@"s"];
-    [fileMenu addItemWithTitle:@"Save As..." action:@selector(saveDocumentAs:) keyEquivalent:@"S"];
+    fileMenu = [[[NSMenu alloc] initWithTitle:_(@"File")] autorelease];
+    [fileMenu addItemWithTitle:_(@"New") action:@selector(newDocument:) keyEquivalent:@"n"];
+    [fileMenu addItemWithTitle:_(@"Open...") action:@selector(openDocument:) keyEquivalent:@"o"];
+    [fileMenu addItemWithTitle:_(@"Save") action:@selector(saveDocument:) keyEquivalent:@"s"];
+    [fileMenu addItemWithTitle:_(@"Save As...") action:@selector(saveDocumentAs:) keyEquivalent:@"S"];
     [fileItem setSubmenu:fileMenu];
 
-    editItem = [[[NSMenuItem alloc] initWithTitle:@"Edit" action:NULL keyEquivalent:@""] autorelease];
+    editItem = [[[NSMenuItem alloc] initWithTitle:_(@"Edit") action:NULL keyEquivalent:@""] autorelease];
     [mainMenu addItem:editItem];
     editMenu = [[[NSMenu alloc] initWithTitle:@"Edit"] autorelease];
-    [editMenu addItemWithTitle:@"Cut" action:@selector(cut:) keyEquivalent:@"x"];
-    [editMenu addItemWithTitle:@"Copy" action:@selector(copy:) keyEquivalent:@"c"];
-    [editMenu addItemWithTitle:@"Paste" action:@selector(paste:) keyEquivalent:@"v"];
+    [editMenu addItemWithTitle:_(@"Cut") action:@selector(cut:) keyEquivalent:@"x"];
+    [editMenu addItemWithTitle:_(@"Copy") action:@selector(copy:) keyEquivalent:@"c"];
+    [editMenu addItemWithTitle:_(@"Paste") action:@selector(paste:) keyEquivalent:@"v"];
     [editMenu addItem:[NSMenuItem separatorItem]];
-    [editMenu addItemWithTitle:@"Select All" action:@selector(selectAll:) keyEquivalent:@"a"];
+    [editMenu addItemWithTitle:_(@"Select All") action:@selector(selectAll:) keyEquivalent:@"a"];
     [editItem setSubmenu:editMenu];
 
     [NSApp setMainMenu:mainMenu];
@@ -199,7 +208,7 @@
     error = nil;
     document = [[StepDownDocument alloc] initWithPath:path delegate:self error:&error];
     if (document == nil) {
-        [self showError:@"Could not open the selected file."];
+        [self showError:_(@"Could not open the selected file.")];
         return NO;
     }
 

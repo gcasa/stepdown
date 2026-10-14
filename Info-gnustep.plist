@@ -1,0 +1,18 @@
+{
+  ApplicationName = StepDown;
+  ApplicationDescription = "Markdown viewer and creator";
+  ApplicationIcon = StepDown.tiff;
+  NSIcon = StepDown.tiff;
+  ApplicationRelease = "1.0";
+  Authors = ("StepDown Contributors");
+  Copyright = "Public Domain";
+  NSTypes = (
+    {
+      NSName = "StepDownMarkdownDocument";
+      NSHumanReadableName = "Markdown Document";
+      NSUnixExtensions = ("md", "markdown");
+      NSRole = Editor;
+      NSIcon = MarkdownDocument.tiff;
+    }
+  );
+}

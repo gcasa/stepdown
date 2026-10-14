@@ -1,0 +1,31 @@
+/* StepDown: localizable strings */
+
+/* AppDelegate.m */
+
+"Quit %@" = "Quitter %@";
+"Info Panel..." = "À propos...";
+"Info" = "Informations";
+"File" = "Fichier";
+"New" = "Nouveau";
+"Open..." = "Ouvrir...";
+"Save" = "Enregistrer";
+"Save As..." = "Enregistrer sous...";
+"Edit" = "\U00C9diter";
+"Cut" = "Couper";
+"Copy" = "Copier";
+"Paste" = "Coller";
+"Select All" = "Tout s\U00E9lectionner";
+"Could not open the selected file." = "Impossible de charger le fichier s\U00E9lectionn\U00E9.";
+
+/* StepDownDocument */
+
+"# Untitled\n\nStart writing Markdown on the left. The preview updates on the right.\n\n- Create notes\n- Open existing `.md` files\n- Save your work\n" = "# Sans titre\n\nCommencez à \U00E9crire du code Markdown à gauche. La pr\U00E9visualisation se reflète à droite.\n\n- Cr\U00E9ez des notes\n- Ouvrez des fichiers `.md` existants\n- Enregistrez votre travail\n";
+
+"%@ - Edited" = "%@ - \U00C9dit\U00E9";
+"Could not save the document." = "Impossible d'enregistrer le document.";
+"Save changes before closing?" = "Enregistrer les changements avant de fermer ?";
+"This document has changes that have not been saved." = "Ce document a re\U00E7u des modifications non enregistr\U00E9es.";
+
+"Cancel" = "Annuler";
+"Discard" = "Renoncer";
+

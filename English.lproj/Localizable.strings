@@ -1,0 +1,31 @@
+/* StepDown: localizable strings */
+
+/* AppDelegate.m */
+
+"Quit %@" = "Quit %@";
+"Info" = "Info";
+"Info panel..." = "Info Panel...";
+"File" = "File";
+"New" = "New";
+"Open..." = "Open...";
+"Save" = "Save";
+"Save As..." = "Save As...";
+"Edit" = "Edit";
+"Cut" = "Cut";
+"Copy" = "Copy";
+"Paste" = "Paste";
+"Select All" = "Select All";
+"Could not open the selected file." = "Could not open the selected file.";
+
+/* StepDownDocument */
+
+"# Untitled\n\nStart writing Markdown on the left. The preview updates on the right.\n\n- Create notes\n- Open existing `.md` files\n- Save your work\n" = "# Untitled\n\nStart writing Markdown on the left. The preview updates on the right.\n\n- Create notes\n- Open existing `.md` files\n- Save your work\n";
+
+"%@ - Edited" = "%@ - Edited";
+"Could not save the document." = "Could not save the document.";
+"Save changes before closing?" = "Save changes before closing?";
+"This document has changes that have not been saved." = "This document has changes that have not been saved.";
+
+"Cancel" = "Cancel";
+"Discard" = "Discard";
+

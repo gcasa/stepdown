@@ -13,5 +13,13 @@ StepDown_RESOURCE_FILES = resources/Info-gnustep.plist resources/StepDown.png re
 StepDown_APPLICATION_ICON = StepDown.tiff
 ADDITIONAL_OBJCFLAGS = -std=gnu99 -Wall -Wextra
 
+#
+# Localization
+#
+StepDown_LANGUAGES = English French
+StepDown_LOCALIZED_RESOURCE_FILES = \
+Localizable.strings \
+InfoPlist.strings
+
 include $(GNUSTEP_MAKEFILES)/application.make
 endif

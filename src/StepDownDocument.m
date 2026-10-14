@@ -4,7 +4,7 @@
 
 static NSString *StepDownInitialMarkdown(void)
 {
-    return @"# Untitled\n\nStart writing Markdown on the left. The preview updates on the right.\n\n- Create notes\n- Open existing `.md` files\n- Save your work\n";
+    return _(@"# Untitled\n\nStart writing Markdown on the left. The preview updates on the right.\n\n- Create notes\n- Open existing `.md` files\n- Save your work\n");
 }
 
 @implementation StepDownDocument
@@ -200,7 +200,7 @@ static NSString *StepDownInitialMarkdown(void)
     } else {
         name = @"Untitled";
     }
-    title = dirty ? [NSString stringWithFormat:@"%@ - Edited", name] : name;
+    title = dirty ? [NSString stringWithFormat:_(@"%@ - Edited"), name] : name;
     [window setTitle:[NSString stringWithFormat:@"StepDown - %@", title]];
 }
 
@@ -246,7 +246,7 @@ static NSString *StepDownInitialMarkdown(void)
     error = nil;
     ok = [text writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:&error];
     if (!ok) {
-        [self showError:@"Could not save the document."];
+        [self showError:_(@"Could not save the document.")];
         return NO;
     }
     dirty = NO;
@@ -264,11 +264,11 @@ static NSString *StepDownInitialMarkdown(void)
     }
 
     alert = [[[NSAlert alloc] init] autorelease];
-    [alert setMessageText:@"Save changes before closing?"];
-    [alert setInformativeText:@"This document has changes that have not been saved."];
-    [alert addButtonWithTitle:@"Save"];
-    [alert addButtonWithTitle:@"Cancel"];
-    [alert addButtonWithTitle:@"Discard"];
+    [alert setMessageText:_(@"Save changes before closing?")];
+    [alert setInformativeText:_(@"This document has changes that have not been saved.")];
+    [alert addButtonWithTitle:_(@"Save")];
+    [alert addButtonWithTitle:_(@"Cancel")];
+    [alert addButtonWithTitle:_(@"Discard")];
     result = [alert runModal];
 
     if (result == NSAlertFirstButtonReturn) {
