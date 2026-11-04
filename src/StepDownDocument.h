@@ -16,6 +16,7 @@
     NSTextView *previewView;
     NSString *currentPath;
     BOOL dirty;
+    BOOL synchronizingScroll;
 }
 
 - (id)initWithDelegate:(id)aDelegate;

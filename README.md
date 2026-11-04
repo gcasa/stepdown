@@ -17,6 +17,7 @@ using WebKit (or the libs-webkitcef).
 
 - Create, edit, open, and save multiple Markdown files at once.
 - Live rendered preview using `NSAttributedString`.
+- Text wraps to each pane, with synchronized scroll progress in both directions.
 - Basic Markdown support: headings, bullets, numbered lists, block quotes,
   code blocks, horizontal rules, links, inline code, bold, and italic text.
 - Programmatic AppKit UI, with no nib or storyboard dependency.
@@ -79,3 +80,14 @@ open build/StepDown.app
 The renderer is intentionally native and conservative rather than a complete
 CommonMark implementation. This keeps the application portable across Cocoa and
 GNUstep without requiring WebKit or external Markdown libraries.
+
+## Layout regression checks (GNUstep/Linux)
+
+With GNUstep development packages and `xvfb-run` installed, run:
+
+```sh
+tests/run-layout-tests.sh
+```
+
+This checks wrapping, window and divider resizing, scrolling from either pane,
+preview refreshes, and short documents on an isolated display.

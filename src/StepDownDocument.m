@@ -61,6 +61,7 @@ static NSString *StepDownInitialMarkdown(void)
 
 - (void)dealloc
 {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
     [window setDelegate:nil];
     [editorView setDelegate:nil];
     [window release];
@@ -124,6 +125,18 @@ static NSString *StepDownInitialMarkdown(void)
     [splitView addSubview:previewScroll];
 
     [[window contentView] addSubview:splitView];
+    [splitView adjustSubviews];
+    [self resizeTextView:editorView];
+    [self resizeTextView:previewView];
+
+    [[editorScroll contentView] setPostsBoundsChangedNotifications:YES];
+    [[previewScroll contentView] setPostsBoundsChangedNotifications:YES];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+        selector:@selector(paneDidScroll:)
+        name:NSViewBoundsDidChangeNotification object:[editorScroll contentView]];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+        selector:@selector(paneDidScroll:)
+        name:NSViewBoundsDidChangeNotification object:[previewScroll contentView]];
 }
 
 - (NSScrollView *)scrollViewForTextView:(NSTextView *)textView
@@ -138,11 +151,70 @@ static NSString *StepDownInitialMarkdown(void)
     [textView setMaxSize:NSMakeSize(FLT_MAX, FLT_MAX)];
     [textView setVerticallyResizable:YES];
     [textView setHorizontallyResizable:NO];
-    [textView setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
-    [[textView textContainer] setContainerSize:NSMakeSize(FLT_MAX, FLT_MAX)];
+    [textView setAutoresizingMask:NSViewWidthSizable];
+    [[textView textContainer] setHeightTracksTextView:NO];
     [[textView textContainer] setWidthTracksTextView:YES];
     [scrollView setDocumentView:textView];
+    [self resizeTextView:textView];
     return scrollView;
+}
+
+- (void)resizeTextView:(NSTextView *)textView
+{
+    NSSize viewport;
+    NSSize inset;
+
+    viewport = [[[textView enclosingScrollView] contentView] bounds].size;
+    inset = [textView textContainerInset];
+    [textView setMinSize:NSMakeSize(0, viewport.height)];
+    [textView setFrameSize:NSMakeSize(viewport.width,
+        MAX(viewport.height, NSHeight([textView frame])))];
+    [[textView textContainer] setContainerSize:
+        NSMakeSize(MAX(1.0, viewport.width - 2.0 * inset.width), FLT_MAX)];
+    [[textView layoutManager] ensureLayoutForTextContainer:[textView textContainer]];
+    [textView sizeToFit];
+}
+
+- (void)synchronizeScrollFromTextView:(NSTextView *)source
+{
+    NSTextView *target;
+    NSClipView *sourceClip;
+    NSClipView *targetClip;
+    CGFloat sourceRange;
+    CGFloat targetRange;
+    CGFloat progress;
+    NSPoint origin;
+
+    if (synchronizingScroll) {
+        return;
+    }
+    synchronizingScroll = YES;
+    target = source == editorView ? previewView : editorView;
+    sourceClip = [[source enclosingScrollView] contentView];
+    targetClip = [[target enclosingScrollView] contentView];
+    /* Finish layout before measuring the two independently wrapped documents. */
+    [[source layoutManager] ensureLayoutForTextContainer:[source textContainer]];
+    [[target layoutManager] ensureLayoutForTextContainer:[target textContainer]];
+    [source sizeToFit];
+    [target sizeToFit];
+    sourceRange = MAX(0.0, NSHeight([source frame]) - NSHeight([sourceClip bounds]));
+    targetRange = MAX(0.0, NSHeight([target frame]) - NSHeight([targetClip bounds]));
+    progress = sourceRange > 0.0 ?
+        (NSMinY([sourceClip bounds]) - NSMinY([source frame])) / sourceRange : 0.0;
+    progress = MAX(0.0, MIN(1.0, progress));
+    origin = NSMakePoint(0, NSMinY([target frame]) + progress * targetRange);
+    [targetClip scrollToPoint:origin];
+    [[target enclosingScrollView] reflectScrolledClipView:targetClip];
+    synchronizingScroll = NO;
+}
+
+- (void)paneDidScroll:(NSNotification *)notification
+{
+    if ([notification object] == [[editorView enclosingScrollView] contentView]) {
+        [self synchronizeScrollFromTextView:editorView];
+    } else {
+        [self synchronizeScrollFromTextView:previewView];
+    }
 }
 
 - (void)showWindow
@@ -317,20 +389,24 @@ static NSString *StepDownInitialMarkdown(void)
         basePath = [[NSFileManager defaultManager] currentDirectoryPath];
     }
     baseURL = [NSURL fileURLWithPath:basePath];
-    previewWidth = NSWidth([previewView bounds]);
-    if (previewWidth > 24.0) {
-        previewWidth -= 24.0;
-    }
-    if (previewWidth < 200.0) {
-        previewWidth = 200.0;
-    }
+    previewWidth = MAX(1.0, [[previewView textContainer] containerSize].width
+        - 2.0 * [[previewView textContainer] lineFragmentPadding]);
 
     rendered = [MarkdownRenderer attributedStringFromMarkdown:[editorView string] baseURL:baseURL maxImageWidth:previewWidth];
+    synchronizingScroll = YES;
     [[previewView textStorage] setAttributedString:rendered];
+    [[previewView layoutManager] ensureLayoutForTextContainer:[previewView textContainer]];
+    [previewView sizeToFit];
+    synchronizingScroll = NO;
+    [self synchronizeScrollFromTextView:editorView];
 }
 
 - (void)splitViewDidResizeSubviews:(NSNotification *)notification
 {
+    synchronizingScroll = YES;
+    [self resizeTextView:editorView];
+    [self resizeTextView:previewView];
+    synchronizingScroll = NO;
     [self updatePreview];
 }
 
